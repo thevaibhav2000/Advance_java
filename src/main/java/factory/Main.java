@@ -3,6 +3,7 @@ package factory;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -11,45 +12,66 @@ public class Main {
 
     private static final Logger logger = Logger.getLogger(Main.class.getName());
 
+    // 1. Master Credentials (accessible to all methods)
+    static String url = "jdbc:postgresql://localhost:5432/smart_factory";
+    static String user = "postgres";
+    static String password = "admin1234";
+
     public static void main(String[] args) {
+        logger.info("Starting Factory Operations...");
 
-        // 1. Your Database Credentials
-        String url = "jdbc:postgresql://localhost:5432/smart_factory";
-        String user = "postgres";
-        String password = "admin1234";
+        // Step 1: Insert a new machine into the database
+        addMachine(102, "Robotic Arm", "ACTIVE");
 
-        // 2. The SQL Blueprint (The Conveyor Belt)
-        // We use ? as secure placeholders for our variables
+        // Step 2: Retrieve and print the full inventory
+        viewInventory();
+    }
+
+    // --- METHOD 1: THE INSERT LOGIC ---
+    public static void addMachine(int id, String name, String status) {
         String sql = "INSERT INTO machine (id, name, status) VALUES (?, ?, ?)";
-
         try {
-            // Open the bridge
             Connection connection = DriverManager.getConnection(url, user, password);
-            logger.info("✅ Bridge opened successfully.");
-
-            // 3. Prepare the Conveyor Belt
             PreparedStatement statement = connection.prepareStatement(sql);
 
-            // 4. Load the Data into the ? placeholders
-            statement.setInt(1, 101);                        // First ?: ID
-            statement.setString(2, "Hydraulic Press");       // Second ?: Name
-            statement.setString(3, "ACTIVE");                // Third ?: Status
+            statement.setInt(1, id);
+            statement.setString(2, name);
+            statement.setString(3, status);
 
-            // 5. Execute the Shipment
-            logger.info("Shipping the machine data...");
-            int rowsAffected = statement.executeUpdate();
-
-            // 6. Verify the Delivery
-            if (rowsAffected > 0) {
-                logger.info("✅ SUCCESS! " + rowsAffected + " machine(s) safely stored in the warehouse.");
+            int rows = statement.executeUpdate();
+            if (rows > 0) {
+                logger.info("✅ SUCCESS! " + name + " saved to database.");
             }
 
-            // Clean up the factory floor
             statement.close();
             connection.close();
-
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "❌ FAILED! The shipment crashed.", e);
+            logger.log(Level.SEVERE, "❌ FAILED to insert data.", e);
+        }
+    }
+
+    // --- METHOD 2: THE SELECT LOGIC ---
+    public static void viewInventory() {
+        String sql = "SELECT id, name, status FROM machine";
+        try {
+            Connection connection = DriverManager.getConnection(url, user, password);
+            PreparedStatement statement = connection.prepareStatement(sql);
+            ResultSet resultSet = statement.executeQuery();
+
+            System.out.println("\n--- 🏭 FACTORY INVENTORY REPORT ---");
+            while (resultSet.next()) {
+                int dbId = resultSet.getInt("id");
+                String dbName = resultSet.getString("name");
+                String dbStatus = resultSet.getString("status");
+                System.out.println("ID: " + dbId + " | Name: " + dbName + " | Status: " + dbStatus);
+            }
+            System.out.println("-----------------------------------\n");
+
+            resultSet.close();
+            statement.close();
+            connection.close();
+        } catch (SQLException e) {
+            logger.log(Level.SEVERE, "❌ FAILED to retrieve data.", e);
         }
     }
 }
